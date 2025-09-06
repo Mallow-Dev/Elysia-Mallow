@@ -1,0 +1,80 @@
+{
+    "$schema": "https://elysia.ai/schemas/codex-job-spec-v1.0.json",
+    "job": {
+        "id": "example-job-001",
+        "name": "Example Agent Job",
+        "description": "A sample job specification for demonstrating agent execution",
+        "version": "1.0",
+        "created_at": "2025-09-06T12:00:00Z",
+        "tags": [
+            "example",
+            "demo",
+            "math"
+        ]
+    },
+    "agent": {
+        "name": "MathAssistant"
+    },
+    "execution": {
+        "mode": "sync",
+        "timeout_seconds": 60,
+        "max_retries": 2,
+        "priority": "normal"
+    },
+    "task": {
+        "objective": "Calculate mathematical operations on provided data",
+        "context": {
+            "background": "This is a demonstration job for the Elysia agent system",
+            "constraints": [
+                "Must complete within 60 seconds"
+            ],
+            "requirements": [
+                "Provide accurate calculations"
+            ]
+        },
+        "inputs": {
+            "data": {
+                "operation": "sum",
+                "numbers": [
+                    10,
+                    20,
+                    30,
+                    40,
+                    50
+                ]
+            }
+        }
+    },
+    "output": {
+        "format": "json",
+        "required_fields": [
+            "result",
+            "operation",
+            "count"
+        ],
+        "validation_rules": [
+            {
+                "field": "result",
+                "rule": "type",
+                "value": "number"
+            }
+        ]
+    },
+    "success_criteria": {
+        "conditions": [
+            "Result must be a valid number",
+            "Operation must match input",
+            "All required fields must be present"
+        ],
+        "metrics": {
+            "accuracy_threshold": 1.0,
+            "completion_time_max": 60
+        }
+    },
+    "metadata": {
+        "author": "Elysia Development Team",
+        "organization": "Elysia AI",
+        "license": "MIT",
+        "documentation_url": "https://docs.elysia.ai/job-specs"
+    }
+}

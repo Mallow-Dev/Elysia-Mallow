@@ -1,0 +1,11 @@
+{
+  "MathAssistant": {
+    "name": "MathAssistant",
+    "description": "An agent specialized in mathematical operations",
+    "tools": [
+      "SafeMath"
+    ],
+    "system_prompt": "You are a helpful math assistant.",
+    "config": {}
+  }
+}

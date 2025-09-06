@@ -1,0 +1,157 @@
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Optional
+import numpy as np
+import os
+
+
+class VectorDB(ABC):
+    """Abstract base class for vector databases."""
+
+    @abstractmethod
+    def connect(self, **kwargs):
+        pass
+
+    @abstractmethod
+    def create_collection(self, name: str, vector_size: int):
+        pass
+
+    @abstractmethod
+    def insert_vectors(
+        self, collection: str, vectors: List[np.ndarray], payloads: List[Dict[str, Any]]
+    ):
+        pass
+
+    @abstractmethod
+    def search_vectors(
+        self, collection: str, query_vector: np.ndarray, limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        pass
+
+
+class QdrantDB(VectorDB):
+    """Qdrant implementation of VectorDB."""
+
+    def __init__(self):
+        self.client = None
+        self.collections = {}
+
+    def _ensure_client(self):
+        if self.client is None:
+            raise RuntimeError(
+                "Qdrant client is not connected. Call connect() before performing operations."
+            )
+        return self.client
+
+    def create_collection(self, name: str, vector_size: int):
+        from qdrant_client.models import Distance, VectorParams
+
+        client = self._ensure_client()
+        client.create_collection(
+            collection_name=name,
+            vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
+        )
+        self.collections[name] = vector_size
+
+    def insert_vectors(
+        self, collection: str, vectors: List[np.ndarray], payloads: List[Dict[str, Any]]
+    ):
+        from qdrant_client.models import PointStruct
+
+        client = self._ensure_client()
+        points = [
+            PointStruct(id=i, vector=vector.tolist(), payload=payload)
+            for i, (vector, payload) in enumerate(zip(vectors, payloads))
+        ]
+        client.upsert(collection_name=collection, points=points)
+
+    def search_vectors(
+        self, collection: str, query_vector: np.ndarray, limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        client = self._ensure_client()
+        search_result = client.search(
+            collection_name=collection, query_vector=query_vector.tolist(), limit=limit
+        )
+        return [{"payload": hit.payload, "score": hit.score} for hit in search_result]
+
+    def search_vectors(
+        self, collection: str, query_vector: np.ndarray, limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        search_result = self.client.search(
+            collection_name=collection, query_vector=query_vector.tolist(), limit=limit
+        )
+        return [{"payload": hit.payload, "score": hit.score} for hit in search_result]
+
+    def connect(self, **kwargs):
+        raise NotImplementedError
+
+
+# Factory function to create database instances
+def create_vector_db(db_type: str = "qdrant", **kwargs) -> VectorDB:
+    if db_type == "qdrant":
+        db = QdrantDB()
+        class _ImplementedQdrantDB(QdrantDB):
+            def connect(self, **kwargs):
+            url = kwargs.get("url") or os.getenv("QDRANT_URL")
+            api_key = kwargs.get("api_key") or os.getenv("QDRANT_API_KEY")
+            prefer_grpc = kwargs.get("prefer_grpc", False)
+
+            if kwargs.get("client"):
+                self.client = kwargs["client"]
+                return
+
+            if url:
+                self.client = QdrantClient(url=url, api_key=api_key, prefer_grpc=prefer_grpc)
+            else:
+                host = kwargs.get("host", "localhost")
+                port = kwargs.get("port", 6333)
+                self.client = QdrantClient(host=host, port=port, api_key=api_key, prefer_grpc=prefer_grpc)
+
+            # Override to ensure we always validate client and return consistent fields
+            def search_vectors(self, collection: str, query_vector: np.ndarray, limit: int = 10) -> List[Dict[str, Any]]:
+            client = self._ensure_client()
+            results = client.search(
+                collection_name=collection,
+                query_vector=query_vector.tolist(),
+                limit=limit,
+            )
+            return [
+                {"id": r.id, "payload": r.payload, "score": r.score}
+                for r in results
+            ]
+
+        db = _ImplementedQdrantDB()args)
+        return db
+    # Add other database types here
+    raise ValueError(f"Unsupported database type: {db_type}")
+
+
+# Add to existing config
+VECTOR_DB_TYPE = os.getenv("VECTOR_DB_TYPE", "qdrant")  # or "weaviate"
+QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
+
+
+import pytest
+import numpy as np
+from elysia.api.vector_db import create_vector_db
+
+from qdrant_client import QdrantClient
+
+class TestQdrantIntegration:
+    def test_qdrant_connection(self):
+        """Test Qdrant database connection and basic operations."""
+        db = create_vector_db("qdrant", url="http://localhost:6333")
+
+        # Create test collection
+        db.create_collection("test_collection", vector_size=128)
+
+        # Insert test vectors
+        vectors = [np.random.rand(128) for _ in range(10)]
+        payloads = [{"text": f"document {i}"} for i in range(10)]
+        db.insert_vectors("test_collection", vectors, payloads)
+
+        # Search test
+        query_vector = np.random.rand(128)
+        results = db.search_vectors("test_collection", query_vector, limit=5)
+
+        assert len(results) == 5
+        assert all("payload" in result and "score" in result for result in results)
