@@ -1,0 +1,1 @@
+{"save_trees_to_weaviate": false, "save_configs_to_weaviate": false, "save_location_wcd_url": "", "save_location_wcd_api_key": "", "save_location_weaviate_is_local": false, "save_location_local_weaviate_port": 8080, "save_location_local_weaviate_grpc_port": 50051, "client_timeout": 3, "tree_timeout": 10}
